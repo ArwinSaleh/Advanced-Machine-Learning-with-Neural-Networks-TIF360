@@ -1,8 +1,8 @@
-from tetris import N_col
 import numpy as np
 import random
 import math
 import h5py
+import itertools
 
 # This file provides the skeleton structure for the classes TQAgent and TDQNAgent to be completed by you, the student.
 # Locations starting with # TO BE COMPLETED BY STUDENT indicates missing code that should be written by you.
@@ -30,12 +30,14 @@ class TQAgent:
         # 'len(gameboard.tiles)' number of different tiles
         # 'self.episode_count' the total number of episodes in the training
 
-        #self.total_states = ((gameboard.N_row * gameboard.N_col) ** 2) * len(gameboard.tiles)
-        #self.total_actions = 3 + 7 + 12 + 6
+        # This yields one state: (x, x, x, x, action)
+        self.states=[]
+        arrays = [range(0, gameboard.N_row + 1), range(0, gameboard.N_row + 1), range(0, gameboard.N_row + 1), range(0, gameboard.N_row + 1), range(0, len(gameboard.tiles))]
+        for i in itertools.product(*arrays):
+            self.states.append(i)
 
-        self.Q_table = np.zeros((   gameboard.col, len(gameboard.tiles)   ))
-        self.rewards = np.zeros((   gameboard.col, len(gameboard.tiles)   ))
-        
+        self.Q_table = np.zeros((((gameboard.N_row + 1) ** gameboard.N_col) * len(gameboard.tiles), 3 + 7 + 12 + 6))
+        self.rewards = np.zeros((self.episode_count, ))
 
     def fn_load_strategy(self,strategy_file):
         # TO BE COMPLETED BY STUDENT
@@ -56,8 +58,7 @@ class TQAgent:
         # 'self.gameboard.board[index_row,index_col]' table indicating if row 'index_row' and column 'index_col' is occupied (+1) or free (-1)
         # 'self.gameboard.cur_tile_type' identifier of the current tile that should be placed on the game board (integer between 0 and len(self.gameboard.tiles))
 
-        for i in range(self.gameboard.N_col):
-            self.Q_table[i, self.gameboard.cur_tile_type] = np.sum(self.gameboard.board[i, :])
+        self.Q_table[self.states.index((h1,h2,h3,h4,self.gameboard.cur_tile_type))]
 
     def fn_select_action(self):
         # TO BE COMPLETED BY STUDENT
@@ -79,12 +80,11 @@ class TQAgent:
         r = np.random.uniform(0, 1)
 
         if r < self.epsilon:
-            self.gameboard.fn_move(np.random.randint(0, self.gameboard.N_col), np.random.randint(0, len(self.gameboard)))
+            self.gameboard.fn_move(np.random.randint(0, self.gameboard.N_col), np.random.randint(0, len(self.gameboard.tiles)))
         else:
-            self.gameboard.fn_move(np.random.randint(0, self.gameboard.N_col), np.random.randint(0, len(self.gameboard)))
+            self.gameboard.fn_move(np.random.randint(0, self.gameboard.N_col), np.random.randint(0, len(self.gameboard.tiles)))
     
     def fn_reinforce(self,old_state,reward):
-        pass
         # TO BE COMPLETED BY STUDENT
         # This function should be written by you
         # Instructions:
@@ -93,6 +93,8 @@ class TQAgent:
 
         # Useful variables: 
         # 'self.alpha' learning rate
+
+
 
     def fn_turn(self):
         if self.gameboard.gameover:
@@ -114,6 +116,8 @@ class TQAgent:
             self.fn_select_action()
             # TO BE COMPLETED BY STUDENT
             # Here you should write line(s) to copy the old state into the variable 'old_state' which is later passed to fn_reinforce()
+
+            old_state = self.Q_table
 
             # Drop the tile on the game board
             reward=self.gameboard.fn_drop()
