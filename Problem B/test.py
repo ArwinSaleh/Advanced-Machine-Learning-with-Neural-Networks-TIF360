@@ -16,18 +16,24 @@ states.append(itertools.product(range(1,5)))
 #print(np.array(states))
 
 lst=[]
-arrays = [range(0,5), range(0,5), range(0, 5), range(0, 5), range(1,5)]  
+arrays = []
+
+for i in range(4):
+    arrays.append(range(0, 5))
+arrays.append(range(0, 4))
 
 for i in itertools.product(*arrays):
          lst.append(i)
 
-
-heights = []
-heights.append(0)
-heights.append(0)
-heights.append(0)
-heights.append(0)
-heights.append(1)
+actions = []
+action_perm = []
+action_perm.append(range(0, 4))
+action_perm.append(range(0, 4))
+action_perm.append(range(0, 4))
 
 
-print(lst.index(heights))
+for i in itertools.product(*action_perm):
+    actions.append(i)
+
+print(np.array(actions))
+print(len(actions))

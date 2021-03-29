@@ -30,13 +30,29 @@ class TQAgent:
         # 'len(gameboard.tiles)' number of different tiles
         # 'self.episode_count' the total number of episodes in the training
 
-        # This yields one state: (x, x, x, x, action)
-        self.states=[]
-        arrays = [range(0, gameboard.N_row + 1), range(0, gameboard.N_row + 1), range(0, gameboard.N_row + 1), range(0, gameboard.N_row + 1), range(0, len(gameboard.tiles))]
-        for i in itertools.product(*arrays):
+        self.states     = []
+        self.actions    = []
+        state_perm      = []
+        action_perm     = []
+        
+        N_ACTION_ORIENTATIONS   = gameboard.N_col
+        N_ACTION_POSITIONS      = gameboard.N_col  # len(gameboard.N_col) possible positions
+
+        for i in range(gameboard.N_col):
+            state_perm.append(range(0, gameboard.N_row + 1))
+        state_perm.append(range(0, len(gameboard.tiles)))
+
+        action_perm.append(range(0, N_ACTION_ORIENTATIONS))
+        action_perm.append(range(0, N_ACTION_POSITIONS))
+
+        # This yields all possible states (col_height1, col_height2, col_height3, col_height4, tile_type)
+        for i in itertools.product(*state_perm):
             self.states.append(i)
 
-        self.Q_table = np.zeros((((gameboard.N_row + 1) ** gameboard.N_col) * len(gameboard.tiles), 3 + 7 + 12 + 6))
+        for i in itertools.product(*action_perm):
+            self.actions.append(i)
+
+        self.Q_table = np.zeros((len(self.states), len(self.actions)))
         self.rewards = np.zeros((self.episode_count, ))
 
     def fn_load_strategy(self,strategy_file):
@@ -93,7 +109,6 @@ class TQAgent:
 
         # Useful variables: 
         # 'self.alpha' learning rate
-
 
 
     def fn_turn(self):
