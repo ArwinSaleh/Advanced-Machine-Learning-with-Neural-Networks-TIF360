@@ -2,6 +2,9 @@ import itertools
 from os import stat
 import numpy as np
 import itertools
+from numpy.core.fromnumeric import argmax
+import pandas as pd
+
 
 o = np.zeros((1, 5))
 p = np.ones((1, 5))
@@ -35,16 +38,9 @@ action_perm.append(range(0, 4))
 for i in itertools.product(*action_perm):
     actions.append(i)
 
-print(np.array(actions))
-#print(len(actions))
+rewards = pd.read_csv('Q_table_episode_10000.csv')
 
-print(actions[0])
+a = np.random.randint(0, 5, size=(4, 4))
 
-board = np.random.randint(-1, 2, size=(4, 4))
-
-#print(board)
-#print(np.where(board[:, 0] == 1 )[0][0])
-
-
-
-#print(actions.index(2))
+print(a)
+print(argmax(a[:,1]))

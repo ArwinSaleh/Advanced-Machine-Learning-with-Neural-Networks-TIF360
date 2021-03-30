@@ -92,6 +92,10 @@ class TQAgent:
 
         self.current_state = tuple(self.current_state)
         # Now current_state looks like this: (h1, h2, h3, h4, tile_type)
+        #print("Current state: " + str(self.current_state))
+        #print(self.gameboard.board))
+
+        self.current_state_idx = self.states.index(self.current_state)
 
     def fn_select_action(self):
         # TO BE COMPLETED BY STUDENT
@@ -110,10 +114,8 @@ class TQAgent:
         # The function returns 1 if the action is not valid and 0 otherwise
         # You can use this function to map out which actions are valid or not
         
-        self.current_state_idx = self.states.index(self.current_state)
-
-        self.current_action = None
-        self.a_max = None
+        
+        self.current_action_idx = None
 
         r = np.random.uniform(0, 1)
 
@@ -121,18 +123,18 @@ class TQAgent:
 
         if r < self.epsilon:
             while(not done):
-                move = self.gameboard.fn_move(np.random.randint(0, self.gameboard.N_col), np.random.randint(0, self.N_ACTION_ORIENTATIONS))
+                self.current_action_idx = np.random.randint(0, len(self.actions))
+                move = self.gameboard.fn_move(self.actions[self.current_action_idx][0], self.actions[self.current_action_idx][1])
                 if move == 0:
                     done = True
         else:
             while(not done):
-                self.a_max = np.where(self.Q_table[self.current_state_idx, :] == np.max(self.Q_table[self.current_state_idx, :]))[0][0]
-                move = self.gameboard.fn_move(self.actions[self.a_max][0], self.actions[self.a_max][1])
+                self.current_action_idx = np.where(self.Q_table[self.current_state_idx, :] == np.max(self.Q_table[self.current_state_idx, :]))[0][0]
+                move = self.gameboard.fn_move(self.actions[self.current_action_idx][0], self.actions[self.current_action_idx][1])
                 if move == 0:
-                    self.current_action = self.actions[self.a_max]
                     done = True
                 else:
-                    self.Q_table[self.current_state_idx, self.a_max] = - np.inf
+                    self.Q_table[self.current_state_idx, self.current_action_idx] = - np.inf
     
     def fn_reinforce(self,old_state,reward):
         # TO BE COMPLETED BY STUDENT
@@ -143,20 +145,23 @@ class TQAgent:
 
         # Useful variables: 
         # 'self.alpha' learning rate
-        
-        self.Q_table[self.current_state_idx, self.a_max] = old_state + self.alpha * (reward + self.Q_table[self.current_state_idx, self.a_max] - old_state)
+
+        old_action = self.current_action_idx
+
+        self.Q_table[old_state, old_action] = self.Q_table[old_state, old_action] + self.alpha * (reward + np.max(self.Q_table[self.current_state_idx, :]) - self.Q_table[old_state, old_action])
 
     def fn_turn(self):
         if self.gameboard.gameover:
             self.episode+=1
             if self.episode%100==0:
-                print('episode '+str(self.episode)+'/'+str(self.episode_count)+' (reward: ',str(np.sum(self.reward_tots[range(self.episode-100,self.episode)])),')')
+                print('episode '+str(self.episode)+'/'+str(self.episode_count)+' (reward: ',str(np.sum(self.reward_tots[range(self.episode-100,self.episode)] / 100)),')')
             if self.episode%1000==0:
                 saveEpisodes=[1000,2000,5000,10000,20000,50000,100000,200000,500000,1000000];
                 if self.episode in saveEpisodes:
-                    pass
                     # TO BE COMPLETED BY STUDENT
                     # Here you can save the rewards and the Q-table to data files for plotting of the rewards and the Q-table can be used to test how the agent plays
+                    np.savetxt("Q_table_episode_" + str(self.episode) + ".csv", self.Q_table, delimiter=",")
+                    np.savetxt("Rewards.csv", self.reward_tots)
             if self.episode>=self.episode_count:
                 raise SystemExit(0)
             else:
@@ -167,12 +172,14 @@ class TQAgent:
             # TO BE COMPLETED BY STUDENT
             # Here you should write line(s) to copy the old state into the variable 'old_state' which is later passed to fn_reinforce()
 
-            old_state = self.Q_table[self.current_state_idx, self.a_max]
+            old_state = self.current_state_idx
 
             # Drop the tile on the game board
             reward=self.gameboard.fn_drop()
             # TO BE COMPLETED BY STUDENT
             # Here you should write line(s) to add the current reward to the total reward for the current episode, so you can save it to disk later
+
+            self.reward_tots[self.episode] += reward
 
             # Read the new state
             self.fn_read_state()
