@@ -30,27 +30,20 @@ class TQAgent:
         # 'len(gameboard.tiles)' number of different tiles
         # 'self.episode_count' the total number of episodes in the training
 
-        self.states     = []
         self.actions    = []
-        state_perm      = []
         action_perm     = []
         
         self.N_ACTION_ORIENTATIONS   = 4                # tile can rotate to 4 different orientations
         N_ACTION_POSITIONS      = gameboard.N_col  # len(gameboard.N_col) possible positions
 
-        for i in range(gameboard.N_col):
-            state_perm.append(range(0, gameboard.N_row + 1))
-        state_perm.append(range(0, len(gameboard.tiles)))
+        self.states = itertools.product([1, -1], repeat=gameboard.N_row * gameboard.N_col)
+        self.states = np.reshape(list(x), (-1, gameboard.N_row, gameboard.N_col))
 
         action_perm.append(range(0, self.N_ACTION_ORIENTATIONS))
         action_perm.append(range(0, N_ACTION_POSITIONS))
 
-        # This yields all possible states (col_height1, col_height2, col_height3, col_height4, tile_type)
-        for i in itertools.product(*state_perm):
-            self.states.append(i)
-
         for i in itertools.product(*action_perm):
-            self.actions.append(i)
+            self.actions.append(i)      # (action1, action2)
 
         self.Q_table = np.zeros((len(self.states), len(self.actions)))
         self.reward_tots = np.zeros((self.episode_count, ))
