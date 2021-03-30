@@ -35,14 +35,14 @@ class TQAgent:
         state_perm      = []
         action_perm     = []
         
-        N_ACTION_ORIENTATIONS   = gameboard.N_col
+        self.N_ACTION_ORIENTATIONS   = 4                # tile can rotate to 4 different orientations
         N_ACTION_POSITIONS      = gameboard.N_col  # len(gameboard.N_col) possible positions
 
         for i in range(gameboard.N_col):
             state_perm.append(range(0, gameboard.N_row + 1))
         state_perm.append(range(0, len(gameboard.tiles)))
 
-        action_perm.append(range(0, N_ACTION_ORIENTATIONS))
+        action_perm.append(range(0, self.N_ACTION_ORIENTATIONS))
         action_perm.append(range(0, N_ACTION_POSITIONS))
 
         # This yields all possible states (col_height1, col_height2, col_height3, col_height4, tile_type)
@@ -53,7 +53,7 @@ class TQAgent:
             self.actions.append(i)
 
         self.Q_table = np.zeros((len(self.states), len(self.actions)))
-        self.rewards = np.zeros((self.episode_count, ))
+        self.reward_tots = np.zeros((self.episode_count, ))
 
     def fn_load_strategy(self,strategy_file):
         # TO BE COMPLETED BY STUDENT
@@ -74,7 +74,24 @@ class TQAgent:
         # 'self.gameboard.board[index_row,index_col]' table indicating if row 'index_row' and column 'index_col' is occupied (+1) or free (-1)
         # 'self.gameboard.cur_tile_type' identifier of the current tile that should be placed on the game board (integer between 0 and len(self.gameboard.tiles))
 
-        self.Q_table[self.states.index((h1,h2,h3,h4,self.gameboard.cur_tile_type))]
+        self.current_state = []
+
+        for i in range(self.gameboard.N_col):
+
+            if 1 in self.gameboard.board[:, i]:
+
+                top_block_idx = np.where(self.gameboard.board[:, i] == 1 )[0][0]
+
+                self.current_state.append(self.gameboard.N_row - top_block_idx)
+            
+            else:
+
+                self.current_state.append(0)
+        
+        self.current_state.append(self.gameboard.cur_tile_type)
+
+        self.current_state = tuple(self.current_state)
+        # Now current_state looks like this: (h1, h2, h3, h4, tile_type)
 
     def fn_select_action(self):
         # TO BE COMPLETED BY STUDENT
@@ -92,13 +109,30 @@ class TQAgent:
         # The input argument 'tile_orientation' contains the number of 90 degree rotations of the tile (0 < tile_orientation < # of non-degenerate rotations)
         # The function returns 1 if the action is not valid and 0 otherwise
         # You can use this function to map out which actions are valid or not
+        
+        self.current_state_idx = self.states.index(self.current_state)
+
+        self.current_action = None
+        self.a_max = None
 
         r = np.random.uniform(0, 1)
 
+        done = False
+
         if r < self.epsilon:
-            self.gameboard.fn_move(np.random.randint(0, self.gameboard.N_col), np.random.randint(0, len(self.gameboard.tiles)))
+            while(not done):
+                move = self.gameboard.fn_move(np.random.randint(0, self.gameboard.N_col), np.random.randint(0, self.N_ACTION_ORIENTATIONS))
+                if move == 0:
+                    done = True
         else:
-            self.gameboard.fn_move(np.random.randint(0, self.gameboard.N_col), np.random.randint(0, len(self.gameboard.tiles)))
+            while(not done):
+                self.a_max = np.where(self.Q_table[self.current_state_idx, :] == np.max(self.Q_table[self.current_state_idx, :]))[0][0]
+                move = self.gameboard.fn_move(self.actions[self.a_max][0], self.actions[self.a_max][1])
+                if move == 0:
+                    self.current_action = self.actions[self.a_max]
+                    done = True
+                else:
+                    self.Q_table[self.current_state_idx, self.a_max] = - np.inf
     
     def fn_reinforce(self,old_state,reward):
         # TO BE COMPLETED BY STUDENT
@@ -109,7 +143,8 @@ class TQAgent:
 
         # Useful variables: 
         # 'self.alpha' learning rate
-
+        
+        self.Q_table[self.current_state_idx, self.a_max] = old_state + self.alpha * (reward + self.Q_table[self.current_state_idx, self.a_max] - old_state)
 
     def fn_turn(self):
         if self.gameboard.gameover:
@@ -132,7 +167,7 @@ class TQAgent:
             # TO BE COMPLETED BY STUDENT
             # Here you should write line(s) to copy the old state into the variable 'old_state' which is later passed to fn_reinforce()
 
-            old_state = self.Q_table
+            old_state = self.Q_table[self.current_state_idx, self.a_max]
 
             # Drop the tile on the game board
             reward=self.gameboard.fn_drop()

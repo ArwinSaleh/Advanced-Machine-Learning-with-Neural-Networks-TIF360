@@ -36,4 +36,15 @@ for i in itertools.product(*action_perm):
     actions.append(i)
 
 print(np.array(actions))
-print(len(actions))
+#print(len(actions))
+
+print(actions[0])
+
+board = np.random.randint(-1, 2, size=(4, 4))
+
+#print(board)
+#print(np.where(board[:, 0] == 1 )[0][0])
+
+
+
+#print(actions.index(2))
