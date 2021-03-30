@@ -18,6 +18,7 @@ class TQAgent:
 
     def fn_init(self,gameboard):
         self.gameboard=gameboard
+        self.t = 0
         # TO BE COMPLETED BY STUDENT
         # This function should be written by you
         # Instructions:
@@ -129,7 +130,8 @@ class TQAgent:
                     done = True
         else:
             while(not done):
-                self.current_action_idx = np.where(self.Q_table[self.current_state_idx, :] == np.max(self.Q_table[self.current_state_idx, :]))[0][0]
+                self.current_action_idx = np.where(self.Q_table[self.current_state_idx, :] == np.max(self.Q_table[self.current_state_idx, :]))[0]
+                self.current_action_idx = self.current_action_idx[np.random.randint(0, len(self.current_action_idx))]
                 move = self.gameboard.fn_move(self.actions[self.current_action_idx][0], self.actions[self.current_action_idx][1])
                 if move == 0:
                     done = True
@@ -151,8 +153,11 @@ class TQAgent:
         self.Q_table[old_state, old_action] = self.Q_table[old_state, old_action] + self.alpha * (reward + np.max(self.Q_table[self.current_state_idx, :]) - self.Q_table[old_state, old_action])
 
     def fn_turn(self):
+        
         if self.gameboard.gameover:
+            #print("GAME OVER")
             self.episode+=1
+            self.t = 0
             if self.episode%100==0:
                 print('episode '+str(self.episode)+'/'+str(self.episode_count)+' (reward: ',str(np.sum(self.reward_tots[range(self.episode-100,self.episode)] / 100)),')')
             if self.episode%1000==0:
@@ -167,8 +172,12 @@ class TQAgent:
             else:
                 self.gameboard.fn_restart()
         else:
+            self.t += 1
             # Select and execute action (move the tile to the desired column and orientation)
             self.fn_select_action()
+
+            #print(self.actions[self.current_action_idx])
+
             # TO BE COMPLETED BY STUDENT
             # Here you should write line(s) to copy the old state into the variable 'old_state' which is later passed to fn_reinforce()
 

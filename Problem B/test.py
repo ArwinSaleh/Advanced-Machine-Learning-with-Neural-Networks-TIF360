@@ -38,9 +38,7 @@ action_perm.append(range(0, 4))
 for i in itertools.product(*action_perm):
     actions.append(i)
 
-rewards = pd.read_csv('Q_table_episode_10000.csv')
+q = np.zeros((5, 3))
 
-a = np.random.randint(0, 5, size=(4, 4))
-
-print(a)
-print(argmax(a[:,1]))
+print(q)
+print(q[:, 0])
