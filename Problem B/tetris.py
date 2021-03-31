@@ -5,7 +5,7 @@ import gameboardClass
 import agentClass
 import time
 
-RENDER_BOARD = False
+RENDER_BOARD = True
 
 PARAM_TASK1a=1
 PARAM_TASK1b=2
