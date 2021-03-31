@@ -46,13 +46,11 @@ n, m = 4, 4
 states = []
 
 x = itertools.product([1, -1], repeat=n * m)
-x = np.reshape(list(x), (-1, n, m))
-# print(x[0,:,:-1])
-
 for board in x:
     for i in range(4):
-        state = (board, i)
-        states.append(state)
+        #state = (board, i)
+        #states.append(state)
+        states.append((board, i))
 
 
 test_board = np.random.randint(0, 2, size=(4,4))
@@ -60,5 +58,13 @@ test_board[test_board == 0] = -1
 
 #print(states.index((test_board, 0)))
 
+key = np.ones((4, 4))
+key = np.ndarray.flatten(key)
+key[key == 1] = -1
+print(key)
+key = tuple(map(tuple, [key]))[0]
 
-print(np.where(state == test_board))
+print(key)
+print(states[0])
+
+print(states.index((key, 0)))

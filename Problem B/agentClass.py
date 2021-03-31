@@ -41,15 +41,12 @@ class TQAgent:
         N_ACTION_ORIENTATIONS   = 4                # tile can rotate to 4 different orientations
         N_ACTION_POSITIONS      = gameboard.N_col  # len(gameboard.N_col) possible positions
 
-        board_configurations = itertools.product([1, -1], repeat=gameboard.N_row * gameboard.N_col)
-        board_configurations = np.reshape(list(board_configurations), (-1, gameboard.N_row, gameboard.N_col))
-
-        for board in board_configurations:
+        board_configs = itertools.product([1, -1], repeat=gameboard.N_row * gameboard.N_col)
+        for board in board_configs:
             for i in range(len(gameboard.tiles)):
-                self.board_states.append(np.ndarray.flatten(board))
+                self.board_states.append(board)
                 self.tile_states.append(i)
 
-        self.board_states = np.array(self.board_states)
 
         action_perm.append(range(0, N_ACTION_ORIENTATIONS))
         action_perm.append(range(0, N_ACTION_POSITIONS))
@@ -57,7 +54,11 @@ class TQAgent:
         for i in itertools.product(*action_perm):
             self.actions.append(i)      # (action1, action2)
 
-        self.Q_table = np.zeros((len(board_configurations) * len(gameboard.tiles), len(self.actions)))
+        self.actions = np.array(self.actions)
+        self.board_states = np.array(self.board_states)
+        self.tile_states = np.array(self.tile_states)
+
+        self.Q_table = np.zeros((2 ** (self.gameboard.N_col * self.gameboard.N_row) * 4, len(self.actions)))
         self.reward_tots = np.zeros((self.episode_count, ))
 
     def fn_load_strategy(self,strategy_file):
@@ -79,29 +80,26 @@ class TQAgent:
         # 'self.gameboard.board[index_row,index_col]' table indicating if row 'index_row' and column 'index_col' is occupied (+1) or free (-1)
         # 'self.gameboard.cur_tile_type' identifier of the current tile that should be placed on the game board (integer between 0 and len(self.gameboard.tiles))
 
-        current_board = set(np.ndarray.flatten(self.gameboard.board))
+        current_board = np.ndarray.flatten(self.gameboard.board)
         current_tile = self.gameboard.cur_tile_type
 
         self.current_state_idx = None
 
-        current_board_idx = [i for i, item in enumerate(self.board_states) if item in current_board]
-        current_tile_idx = np.inf
+        current_board = np.ndarray.flatten(current_board)
+        current_board = tuple(map(tuple, [current_board]))[0]
 
-        print(current_board_idx)
-        print(len(current_board_idx))
-        error
+        current_tile_idx = np.where(self.tile_states == current_tile)[0]
+        current_board_idx = np.where(self.board_states == current_board)[0]
 
-        for i in range(len(self.board_states)):
+        self.current_state_idx = None
+
+        for i in range(self.board_states.shape[0]):
             if np.array_equal(self.board_states[i], current_board):
-                current_board_idx = i
-            if self.tile_states[i] == current_tile:
-                current_tile_idx = i
+                self.current_state_idx = i
+                break
 
-            if current_board_idx == current_tile_idx:
-                self.current_state_idx = i  
-                break      
 
-        print(self.current_state_idx)
+        
 
         # Now current_state looks like this: (h1, h2, h3, h4, tile_type)
         #print("Current state: " + str(self.current_state))
