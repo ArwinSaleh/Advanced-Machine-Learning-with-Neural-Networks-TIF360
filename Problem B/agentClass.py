@@ -41,6 +41,10 @@ class TQAgent:
 
         for i in range(gameboard.N_col):
             state_perm.append(range(0, gameboard.N_row + 1))
+
+        for i in range(gameboard.N_col):
+            state_perm.append(range(0, gameboard.N_row))
+
         state_perm.append(range(0, len(gameboard.tiles)))
 
         action_perm.append(range(0, self.N_ACTION_ORIENTATIONS))
@@ -84,6 +88,18 @@ class TQAgent:
                 top_block_idx = np.where(self.gameboard.board[:, i] == 1 )[0][0]
 
                 self.current_state.append(self.gameboard.N_row - top_block_idx)
+            
+            else:
+
+                self.current_state.append(0)
+
+
+        for i in range(self.gameboard.N_col):
+
+            if 1 in self.gameboard.board[:, i]:
+
+                top_block_idx = np.where(self.gameboard.board[:, i] == 1 )[0][0]
+                self.current_state.append(len(np.where(self.gameboard.board[:, i] == -1)[0]) - top_block_idx)
             
             else:
 
@@ -151,11 +167,12 @@ class TQAgent:
         old_action = self.current_action_idx
 
         self.Q_table[old_state, old_action] = self.Q_table[old_state, old_action] + self.alpha * (reward + np.max(self.Q_table[self.current_state_idx, :]) - self.Q_table[old_state, old_action])
-
+        
     def fn_turn(self):
         
         if self.gameboard.gameover:
             #print("GAME OVER")
+            print('episode '+str(self.episode)+'/'+str(self.episode_count)+' (reward: ',str(np.sum(self.reward_tots[range(self.episode-100,self.episode)])),')')
             self.episode+=1
             self.t = 0
             if self.episode%100==0:
