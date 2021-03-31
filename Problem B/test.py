@@ -38,8 +38,6 @@ action_perm.append(range(0, 4))
 for i in itertools.product(*action_perm):
     actions.append(i)
 
-rewards = pd.read_csv('Q_table_episode_10000.csv')
-
 a = np.random.randint(0, 5, size=(4, 4))
 
 n, m = 4, 4
@@ -49,13 +47,18 @@ states = []
 
 x = itertools.product([1, -1], repeat=n * m)
 x = np.reshape(list(x), (-1, n, m))
-y = itertools.product([range(0, 4)], repeat=1 * m)
-y = np.reshape(list(y), (-1, n, 1))
 # print(x[0,:,:-1])
 
+for board in x:
+    for i in range(4):
+        state = (board, i)
+        states.append(state)
 
-print(x)
-print(y)
-print(len(x))
-print(len(npy))
-print(np.hstack((x, y)))
+
+test_board = np.random.randint(0, 2, size=(4,4))
+test_board[test_board == 0] = -1
+
+#print(states.index((test_board, 0)))
+
+
+print(np.where(state == test_board))

@@ -3,6 +3,9 @@ import random
 import math
 import h5py
 import itertools
+from more_itertools import locate
+
+from numpy.lib.shape_base import tile
 
 # This file provides the skeleton structure for the classes TQAgent and TDQNAgent to be completed by you, the student.
 # Locations starting with # TO BE COMPLETED BY STUDENT indicates missing code that should be written by you.
@@ -30,22 +33,31 @@ class TQAgent:
         # 'len(gameboard.tiles)' number of different tiles
         # 'self.episode_count' the total number of episodes in the training
 
-        self.actions    = []
-        action_perm     = []
+        self.board_states   = []
+        self.tile_states    = []
+        self.actions        = []
+        action_perm         = []
         
-        self.N_ACTION_ORIENTATIONS   = 4                # tile can rotate to 4 different orientations
+        N_ACTION_ORIENTATIONS   = 4                # tile can rotate to 4 different orientations
         N_ACTION_POSITIONS      = gameboard.N_col  # len(gameboard.N_col) possible positions
 
-        self.states = itertools.product([1, -1], repeat=gameboard.N_row * gameboard.N_col)
-        self.states = np.reshape(list(x), (-1, gameboard.N_row, gameboard.N_col))
+        board_configurations = itertools.product([1, -1], repeat=gameboard.N_row * gameboard.N_col)
+        board_configurations = np.reshape(list(board_configurations), (-1, gameboard.N_row, gameboard.N_col))
 
-        action_perm.append(range(0, self.N_ACTION_ORIENTATIONS))
+        for board in board_configurations:
+            for i in range(len(gameboard.tiles)):
+                self.board_states.append(np.ndarray.flatten(board))
+                self.tile_states.append(i)
+
+        self.board_states = np.array(self.board_states)
+
+        action_perm.append(range(0, N_ACTION_ORIENTATIONS))
         action_perm.append(range(0, N_ACTION_POSITIONS))
 
         for i in itertools.product(*action_perm):
             self.actions.append(i)      # (action1, action2)
 
-        self.Q_table = np.zeros((len(self.states), len(self.actions)))
+        self.Q_table = np.zeros((len(board_configurations) * len(gameboard.tiles), len(self.actions)))
         self.reward_tots = np.zeros((self.episode_count, ))
 
     def fn_load_strategy(self,strategy_file):
@@ -67,28 +79,44 @@ class TQAgent:
         # 'self.gameboard.board[index_row,index_col]' table indicating if row 'index_row' and column 'index_col' is occupied (+1) or free (-1)
         # 'self.gameboard.cur_tile_type' identifier of the current tile that should be placed on the game board (integer between 0 and len(self.gameboard.tiles))
 
-        self.current_state = []
+        current_board = set(np.ndarray.flatten(self.gameboard.board))
+        current_tile = self.gameboard.cur_tile_type
 
-        for i in range(self.gameboard.N_col):
+        self.current_state_idx = None
 
-            if 1 in self.gameboard.board[:, i]:
+        current_board_idx = [i for i, item in enumerate(self.board_states) if item in current_board]
+        current_tile_idx = np.inf
 
-                top_block_idx = np.where(self.gameboard.board[:, i] == 1 )[0][0]
+        print(current_board_idx)
+        print(len(current_board_idx))
+        error
 
-                self.current_state.append(self.gameboard.N_row - top_block_idx)
-            
-            else:
+        for i in range(len(self.board_states)):
+            if np.array_equal(self.board_states[i], current_board):
+                current_board_idx = i
+            if self.tile_states[i] == current_tile:
+                current_tile_idx = i
 
-                self.current_state.append(0)
-        
-        self.current_state.append(self.gameboard.cur_tile_type)
+            if current_board_idx == current_tile_idx:
+                self.current_state_idx = i  
+                break      
 
-        self.current_state = tuple(self.current_state)
+        print(self.current_state_idx)
+
         # Now current_state looks like this: (h1, h2, h3, h4, tile_type)
         #print("Current state: " + str(self.current_state))
         #print(self.gameboard.board))
 
-        self.current_state_idx = self.states.index(self.current_state)
+        #print(board_idx)
+
+        #print(board_idx)
+        #print(tile_idx)
+        #print(board_idx[board_idx == tile_idx])
+
+
+        #print(self.current_state_idx)
+
+        #print(self.current_state_idx)
 
     def fn_select_action(self):
         # TO BE COMPLETED BY STUDENT
@@ -122,7 +150,9 @@ class TQAgent:
                     done = True
         else:
             while(not done):
-                self.current_action_idx = np.where(self.Q_table[self.current_state_idx, :] == np.max(self.Q_table[self.current_state_idx, :]))[0][0]
+                #self.current_action_idx = np.argmax(self.Q_table[self.current_state_idx, :], axis=0)
+                self.current_action_idx = np.where(self.Q_table[self.current_state_idx, :] == np.max(self.Q_table[self.current_state_idx, :]))[0]
+                self.current_action_idx = self.current_action_idx[np.random.randint(0, len(self.current_action_idx))]
                 move = self.gameboard.fn_move(self.actions[self.current_action_idx][0], self.actions[self.current_action_idx][1])
                 if move == 0:
                     done = True
@@ -145,6 +175,7 @@ class TQAgent:
 
     def fn_turn(self):
         if self.gameboard.gameover:
+            print("EPISODE: " + str(self.episode))
             self.episode+=1
             if self.episode%100==0:
                 print('episode '+str(self.episode)+'/'+str(self.episode_count)+' (reward: ',str(np.sum(self.reward_tots[range(self.episode-100,self.episode)] / 100)),')')
