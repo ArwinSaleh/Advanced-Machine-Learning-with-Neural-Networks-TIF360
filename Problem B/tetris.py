@@ -1,11 +1,9 @@
-from os import SEEK_CUR
-import numpy as np
 import pygame
 import gameboardClass
 import agentClass
 import time
 
-RENDER_BOARD    = True
+RENDER_BOARD    = False
 DELAY           = True
 SECONDS         = 0.5
 START_STEP      = 950
@@ -22,7 +20,7 @@ human_player=0
 #human_player=1
 
 # Choose parameter sets for different tasks
-#param_set=PARAM_TASK1a
+param_set=PARAM_TASK1a
 #param_set=PARAM_TASK1b
 #param_set=PARAM_TASK1c
 #param_set=PARAM_TASK1d

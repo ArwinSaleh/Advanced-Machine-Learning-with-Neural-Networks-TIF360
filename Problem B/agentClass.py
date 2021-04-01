@@ -1,6 +1,5 @@
 import numpy as np
 import itertools
-from more_itertools import locate
 
 from numpy.lib.shape_base import tile
 
