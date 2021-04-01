@@ -1,7 +1,4 @@
 import numpy as np
-import random
-import math
-import h5py
 import itertools
 from more_itertools import locate
 

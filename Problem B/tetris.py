@@ -1,12 +1,11 @@
 from os import SEEK_CUR
 import numpy as np
 import pygame
-import h5py
 import gameboardClass
 import agentClass
 import time
 
-RENDER_BOARD    = False
+RENDER_BOARD    = True
 DELAY           = True
 SECONDS         = 0.5
 START_STEP      = 950

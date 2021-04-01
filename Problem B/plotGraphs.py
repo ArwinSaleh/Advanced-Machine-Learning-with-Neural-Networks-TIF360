@@ -4,6 +4,7 @@ import numpy as np
 from numpy.core.fromnumeric import size
 import pandas as pd
 import operator
+from sys import platform
 
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
@@ -12,7 +13,11 @@ from sklearn.preprocessing import PolynomialFeatures
 
 def task1a():
 
-    rewards = pd.read_csv("Problem B\\Task 1\\1a.csv").to_numpy()
+    if platform == "linux" or platform == "linux2":
+        rewards = pd.read_csv("Problem B/Task 1/1a.csv").to_numpy()
+    else:
+        rewards = pd.read_csv("Problem B\\Task 1\\1a.csv").to_numpy()
+
     n_episodes = len(rewards)
     episodes = np.linspace(0,n_episodes, n_episodes)
 
@@ -44,7 +49,11 @@ def task1a():
 
 def task1b():
 
-    rewards = pd.read_csv("Problem B\\Task 1\\1b.csv").to_numpy()
+    if platform == "linux" or platform == "linux2":
+        rewards = pd.read_csv("Problem B/Task 1/1b.csv").to_numpy()
+    else:
+        rewards = pd.read_csv("Problem B\\Task 1\\1b.csv").to_numpy()
+
     n_episodes = len(rewards)
     episodes = np.linspace(0,n_episodes, n_episodes)
 
@@ -76,7 +85,11 @@ def task1b():
 
 def task1c():
 
-    rewards = pd.read_csv("Problem B\\Task 1\\1c.csv")
+    if platform == "linux" or platform == "linux2":
+        rewards = pd.read_csv("Problem B/Task 1/1c.csv").to_numpy()
+    else:
+        rewards = pd.read_csv("Problem B\\Task 1\\1c.csv").to_numpy()
+
     n_episodes = len(rewards)
     episodes = np.linspace(0,n_episodes, n_episodes)
 
@@ -106,6 +119,6 @@ def task1c():
     plt.legend()
     plt.show()
 
-task1a()
+#task1a()
 #task1b()
-#task1c()
+task1c()
