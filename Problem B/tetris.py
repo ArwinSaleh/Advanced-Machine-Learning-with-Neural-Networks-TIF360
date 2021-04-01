@@ -1,3 +1,4 @@
+from os import SEEK_CUR
 import numpy as np
 import pygame
 import h5py
@@ -5,7 +6,10 @@ import gameboardClass
 import agentClass
 import time
 
-RENDER_BOARD = True
+RENDER_BOARD    = False
+DELAY           = True
+SECONDS         = 0.5
+START_STEP      = 950
 
 PARAM_TASK1a=1
 PARAM_TASK1b=2
@@ -19,7 +23,7 @@ human_player=0
 #human_player=1
 
 # Choose parameter sets for different tasks
-param_set=PARAM_TASK1a
+#param_set=PARAM_TASK1a
 #param_set=PARAM_TASK1b
 #param_set=PARAM_TASK1c
 #param_set=PARAM_TASK1d
@@ -33,6 +37,8 @@ if param_set==PARAM_TASK1a:
 elif param_set==PARAM_TASK1b:
     strategy_file=''
 elif param_set==PARAM_TASK1c:
+    strategy_file=''
+elif param_set== PARAM_TASK1d:
     strategy_file=''
 elif param_set==PARAM_TASK2a:
     strategy_file=''
@@ -241,13 +247,14 @@ if isinstance(gameboard.agent,agentClass.THumanAgent):
             clock.tick(framerate)
 else:
     # The player is AI
+    steps = 0
     while True:
         gameboard.agent.fn_turn()
+        steps += 1
 
-        if RENDER_BOARD:
-
-            time.sleep(0.5)
-
+        if RENDER_BOARD and steps > START_STEP:
+            if DELAY:
+                time.sleep(SECONDS)
             # Define some colors for painting
             COLOR_BLACK = (0, 0, 0)
             COLOR_GREY = (128, 128, 128)
@@ -263,7 +270,7 @@ else:
             font=pygame.font.SysFont('Calibri',25,True)
             fontLarge=pygame.font.SysFont('Calibri',50,True)
             framerate=0;
-            
+
             if pygame.display.get_active():
                 # Paint game board
                 screen.fill(COLOR_WHITE)
@@ -291,6 +298,7 @@ else:
 
                 pygame.display.flip()
                 clock.tick(framerate)
+
 
 
 

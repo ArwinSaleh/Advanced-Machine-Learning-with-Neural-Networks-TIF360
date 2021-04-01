@@ -38,7 +38,37 @@ action_perm.append(range(0, 4))
 for i in itertools.product(*action_perm):
     actions.append(i)
 
-q = np.zeros((5, 3))
+a = np.random.randint(0, 5, size=(4, 4))
 
-print(q)
-print(q[:, 0])
+n, m = 4, 4
+
+
+states = []
+
+x = itertools.product([1, -1], repeat=n * m)
+for board in x:
+    for i in range(4):
+        #state = (board, i)
+        #states.append(state)
+        states.append((board, i))
+
+
+test_board = np.random.randint(0, 2, size=(4,4))
+test_board[test_board == 0] = -1
+
+#print(states.index((test_board, 0)))
+
+key = np.ones((4, 4))
+key = np.ndarray.flatten(key)
+key[key == 1] = -1
+print(key)
+key = tuple(map(tuple, [key]))[0]
+
+print(key)
+print(states[0])
+
+print(states.index((key, 0)))
+
+a = np.array([0, 0, -np.inf, -999, -np.inf])
+
+print(np.max(a))
