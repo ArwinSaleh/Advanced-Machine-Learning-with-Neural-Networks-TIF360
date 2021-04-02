@@ -24,6 +24,7 @@ def plot_task(TASK):
     rewards = rewards[:, np.newaxis]
 
     poly_feat = PolynomialFeatures(degree=1)
+    
     if TASK == "1a":
         poly_feat = PolynomialFeatures(degree=6)
     if TASK == "1b":

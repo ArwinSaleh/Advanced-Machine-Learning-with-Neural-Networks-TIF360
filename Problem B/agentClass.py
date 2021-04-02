@@ -1,5 +1,12 @@
 import numpy as np
 import itertools
+from matplotlib import pyplot as plt
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+import torchvision.transforms as T
 
 from numpy.lib.shape_base import tile
 
@@ -146,6 +153,14 @@ class TQAgent:
 class TDQNAgent:
     # Agent for learning to play tetris using Q-learning
     def __init__(self,alpha,epsilon,epsilon_scale,replay_buffer_size,batch_size,sync_target_episode_count,episode_count):
+
+        # set up matplotlib
+        is_ipython = 'inline' in matplotlib.get_backend()
+        if is_ipython:
+            from IPython import display
+
+        plt.ion()
+        
         # Initialize training parameters
         self.alpha=alpha
         self.epsilon=epsilon
@@ -155,6 +170,9 @@ class TDQNAgent:
         self.sync_target_episode_count=sync_target_episode_count
         self.episode=0
         self.episode_count=episode_count
+
+    # if gpu is to be used
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def fn_init(self,gameboard):
         self.gameboard=gameboard
@@ -172,6 +190,8 @@ class TDQNAgent:
         # 'self.alpha' the learning rate for stochastic gradient descent
         # 'self.episode_count' the total number of episodes in the training
         # 'self.replay_buffer_size' the number of quadruplets stored in the experience replay buffer
+
+
 
     def fn_load_strategy(self,strategy_file):
         pass
