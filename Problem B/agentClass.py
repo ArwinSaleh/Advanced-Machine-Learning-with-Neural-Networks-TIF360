@@ -191,7 +191,11 @@ class TDQNAgent:
         # 'self.episode_count' the total number of episodes in the training
         # 'self.replay_buffer_size' the number of quadruplets stored in the experience replay buffer
 
+        class DeepQNet(nn.Module):
+            def __init__(self):
+                super(DeepQNet, self).__init__()
 
+                self.conv
 
     def fn_load_strategy(self,strategy_file):
         pass
