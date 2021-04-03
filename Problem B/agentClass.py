@@ -5,7 +5,6 @@ from collections import namedtuple
 import random
 
 import torch
-from torch._C import dtype
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
@@ -371,7 +370,7 @@ class TDQNAgent:
         # (a final state would've been the one after which simulation ended)
         non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
                                             batch.next_state)), device=self.device, dtype=torch.bool)
-        non_final_next_states = torch.cat([s for s in batch.next_state
+        non_final_next_states = torch.stack([s for s in batch.next_state
                                                     if s is not None])
         state_batch = torch.stack(batch.state)
         action_batch = torch.stack(batch.action)
@@ -426,7 +425,7 @@ class TDQNAgent:
             actions = np.zeros((len(self.actions, )))
             actions[actions == 0] = -1
             actions[self.current_action_idx] = 1
-            actions = torch.tensor(actions, dtype=torch.int64)
+            actions = torch.LongTensor(actions)
 
             # Drop the tile on the game board
             reward=self.gameboard.fn_drop()
