@@ -1,5 +1,6 @@
 import numpy as np
 import itertools
+import torch
 
 
 o = np.zeros((1, 5))
@@ -41,30 +42,9 @@ n, m = 4, 4
 
 states = []
 
-x = itertools.product([1, -1], repeat=n * m)
-for board in x:
-    for i in range(4):
-        #state = (board, i)
-        #states.append(state)
-        states.append((board, i))
+a = torch.randint(0, 3, size=(4,4))
 
-
-test_board = np.random.randint(0, 2, size=(4,4))
-test_board[test_board == 0] = -1
-
-#print(states.index((test_board, 0)))
-
-key = np.ones((4, 4))
-key = np.ndarray.flatten(key)
-key[key == 1] = -1
-print(key)
-key = tuple(map(tuple, [key]))[0]
-
-print(key)
-print(states[0])
-
-print(states.index((key, 0)))
-
-a = np.array([0, 0, -np.inf, -999, -np.inf])
-
-print(np.max(a))
+print(a)
+#print(a.max(1)[1].view(1, 1))
+print(a.max(1)[1][0])
+print(a)

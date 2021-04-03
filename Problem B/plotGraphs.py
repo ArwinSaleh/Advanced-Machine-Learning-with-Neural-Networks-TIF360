@@ -31,6 +31,8 @@ def plot_task(TASK):
         poly_feat = PolynomialFeatures(degree=4)
     if TASK == "1c":
         poly_feat = PolynomialFeatures(degree=3)
+    if TASK == "2a":
+        poly_feat = PolynomialFeatures(degree=3)
     
     ep_poly = poly_feat.fit_transform(episodes)
 
