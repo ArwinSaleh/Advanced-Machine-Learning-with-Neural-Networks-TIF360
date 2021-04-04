@@ -54,5 +54,5 @@ def plot_task(TASK):
 
 #plot_task("1a")
 #plot_task("1b")
-plot_task("1c")
-
+#plot_task("1c")
+plot_task("2a")

@@ -6,7 +6,7 @@ import time
 RENDER_BOARD    = False
 DELAY           = True
 SECONDS         = 0.5
-START_STEP      = 950
+START_STEP      = 5000
 
 PARAM_TASK1a=1
 PARAM_TASK1b=2
