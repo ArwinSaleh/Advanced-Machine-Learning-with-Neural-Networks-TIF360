@@ -1,3 +1,5 @@
+from keras.backend import conv2d
+from keras.optimizer_v1 import Adam
 import numpy as np
 import itertools
 from matplotlib import pyplot as plt
@@ -160,63 +162,95 @@ class DeepQNet(nn.Module):
                 self.fc1_dims = fc1_dims
                 self.fc2_dims = fc2_dims
                 self.N_actions = N_actions
-
                 self.fc1 = nn.Linear(*self.input_dims, self.fc1_dims)
                 self.fc2 = nn.Linear(self.fc1_dims, self.fc2_dims)
                 self.fc3 = nn.Linear(self.fc2_dims, self.N_actions)
-
                 self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
                 self.loss = nn.MSELoss()
-
                 self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
             def forward(self, state):
                 x = F.relu(self.fc1(state))
                 x = F.relu(self.fc2(x))
                 actions = self.fc3(x)
-
                 return actions
-
 """
 
-class DQN(nn.Module):
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout, Conv2D, MaxPooling2D, Activation, Flatten
+from tensorflow.keras.callbacks import TensorBoard
+from tensorflow.keras.optimizers import Adam
+from collections import deque
 
-    def __init__(self, rows, cols, tiles, actions):
-        super(DQN, self).__init__()
-        self.fc1    = nn.Linear(rows * cols + len(tiles), rows * cols + len(tiles))
-        self.fc2    = nn.Linear(rows * cols + len(tiles), rows * cols + len(tiles))
-        self.fc3    = nn.Linear(rows * cols + len(tiles), len(actions))
+class DQN:
+    def __init__(self, input_shape, output_shape, REPLAY_MEM_SIZE):
+        self.model = self.create_model(input_shape, output_shape)
 
-    # Called with either one element to determine next action, or a batch
-    # during optimization. Returns tensor([[left0exp,right0exp]...]).
-    def forward(self, state):
-        x = F.relu(self.fc1(state))
-        x = F.relu(self.fc2(x))
-        actions = self.fc3(x)
-        return actions
+        self.target_model = self.create_model(input_shape, output_shape)
+        self.target_model.set_weights(self.model.get_weights())
 
-Transition = namedtuple('Transition',
-                        ('state', 'action', 'next_state', 'reward'))
-class ReplayMemory(object):
+        self.replay_memory = deque(maxlen=REPLAY_MEM_SIZE)
 
-    def __init__(self, capacity):
-        self.capacity = capacity
-        self.memory = []
-        self.position = 0
+        self.target_update_counter = 0
 
-    def push(self, *args):
-        """Saves a transition."""
-        if len(self.memory) < self.capacity:
-            self.memory.append(None)
-        self.memory[self.position] = Transition(*args)
-        self.position = (self.position + 1) % self.capacity
+    def create_model(self, input_shape, output_shape):
+        model = Sequential()
+        model.add(Conv2D(256, (3, 3), input_shape=input_shape))
+        model.add(Activation("relu"))
+        model.add(MaxPooling2D(2, 2))
+        model.add(Dropout(0.2))
 
-    def sample(self, batch_size):
-        return random.sample(self.memory, batch_size)
+        model.add(Conv2D(256, (3, 3)))
+        model.add(Activation("relu"))
+        model.add(MaxPooling2D(2, 2))
+        model.add(Dropout(0.2))
 
-    def __len__(self):
-        return len(self.memory)
+        model.add(Flatten())
+        model.add(Dense(64))
+        model.add(Dense(output_shape, activation="linear"))
+        model.compile(loss="mse", optimizer=Adam(lr=0.001), metrics=['accuracy'])
+        
+        return model
 
+    def update_replay_memory(self, transition):
+        self.replay_memory.append(transition)
+
+    def get_Qs(self, state):
+        return self.model.predict(np.array(state).reshape(-1, *state.shape))[0]
+    
+    def train(self, terminal_state, batch_size, DISCOUNT, EP_SYNC):
+        batch = random.sample(self.replay_memory, batch_size)
+        
+        current_states = np.array([transition[0] for transition in batch])
+        current_Qs_list = self.model.predict(current_states)
+
+        new_current_states = np.array([transition[3] for transition in batch])
+        future_qs_list = self.target_model.predict(new_current_states)
+
+        X = []
+        y = []
+        
+        for index, (current_state, action, reward, new_current_state, done) in enumerate(batch):
+            if not done:
+                max_future_Q = np.max(future_qs_list[index])
+                new_Q = reward + DISCOUNT * max_future_Q
+            else:
+                new_Q = reward
+
+            current_Qs = current_Qs_list[index]
+            current_Qs[action] = new_Q
+
+            X.append(current_state)
+            y.append(current_Qs)
+
+        self.model.fit(np.array(X), np.array(y), batch_size=batch_size, verbose=0, shuffle=False if terminal_state else None)
+
+        if terminal_state:
+            self.target_update_counter += 1
+
+        if self.target_update_counter > EP_SYNC:
+            self.target_model.set_weights(self.model.get_weights())
+            self.target_update_counter = 0
+        
 class TDQNAgent:
     # Agent for learning to play tetris using Q-learning
     def __init__(self,alpha,epsilon,epsilon_scale,replay_buffer_size,batch_size,sync_target_episode_count,episode_count):
@@ -258,18 +292,9 @@ class TDQNAgent:
             self.actions.append(i)      # (action1, action2)
         self.actions = np.array(self.actions)
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        
-        self.Q_net              = DQN(rows=gameboard.N_row, cols=gameboard.N_col, tiles=gameboard.tiles, actions=self.actions).to(self.device).double()
-        self.Q_target           = DQN(rows=gameboard.N_row, cols=gameboard.N_col, tiles=gameboard.tiles, actions=self.actions).to(self.device).double()
-        self.Q_target.load_state_dict(self.Q_net.state_dict())
-        self.Q_target.eval()
+        self.DeepQnetwork = DQN(input_shape=(len(gameboard.tiles), gameboard.N_row, gameboard.N_col), output_shape=len(self.actions), REPLAY_MEM_SIZE=self.replay_buffer_size)
 
-        self.optimizer = optim.RMSprop(self.Q_net.parameters())
-
-        self.replay             = ReplayMemory(capacity=self.replay_buffer_size)
-
-        self.reward_tots        = np.zeros((self.episode_count, ))
+        self.reward_tots = np.zeros((self.episode_count, ))
 
     def fn_load_strategy(self,strategy_file):
         pass
@@ -298,7 +323,6 @@ class TDQNAgent:
         tiles[self.gameboard.cur_tile_type] = 1
 
         self.current_state = np.concatenate((current_board, tiles), axis=None)
-        self.current_state = torch.from_numpy(self.current_state)
 
     def fn_select_action(self):
         
@@ -319,8 +343,6 @@ class TDQNAgent:
         # The function returns 1 if the action is not valid and 0 otherwise
         # You can use this function to map out which actions are valid or not
 
-
-
         self.current_action_idx = None
 
         r = np.random.uniform(0, 1)
@@ -337,22 +359,19 @@ class TDQNAgent:
                     done = True
         else:
             while(not done):
-                with torch.no_grad():
+                self.current_action_idx = np.argmax(self.DeepQnetwork.get_Qs(self.current_state))
+                move = self.gameboard.fn_move(self.actions[self.current_action_idx][0], self.actions[self.current_action_idx][1])
 
-                    tensor = self.Q_net(self.current_state).to(self.device)
-                    tensor_max = tensor.argmax()
-                    self.current_action_idx = tensor_max.item()
-                    move = self.gameboard.fn_move(self.actions[self.current_action_idx][0], self.actions[self.current_action_idx][1])
+                if move == 1:
+                    #self.Q_net[tensor_max] = torch.tensor(- 999)
+                    while(not done):
+                        self.current_action_idx = np.random.randint(0, len(self.actions))
+                        move = self.gameboard.fn_move(self.actions[self.current_action_idx][0], self.actions[self.current_action_idx][1])
+                        if move == 0:
+                            done = True
+                else:
+                    done = True
 
-                    if move == 1:
-                        #self.Q_net[tensor_max] = torch.tensor(- 999)
-                        while(not done):
-                            self.current_action_idx = np.random.randint(0, len(self.actions))
-                            move = self.gameboard.fn_move(self.actions[self.current_action_idx][0], self.actions[self.current_action_idx][1])
-                            if move == 0:
-                                done = True
-                    else:
-                        done = True
 
     def fn_reinforce(self,batch):
         # TO BE COMPLETED BY STUDENT
@@ -368,38 +387,7 @@ class TDQNAgent:
 
         # Compute a mask of non-final states and concatenate the batch elements
         # (a final state would've been the one after which simulation ended)
-        non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
-                                            batch.next_state)), device=self.device, dtype=torch.bool)
-        non_final_next_states = torch.stack([s for s in batch.next_state
-                                                    if s is not None])
-        state_batch = torch.stack(batch.state)
-        action_batch = torch.stack(batch.action)
-        reward_batch = torch.stack(batch.reward)
-
-        # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
-        # columns of actions taken. These are the actions which would've been taken
-        # for each batch state according to policy_net
-        state_action_values = self.Q_net(state_batch).gather(1, action_batch)
-
-        # Compute V(s_{t+1}) for all next states.
-        # Expected values of actions for non_final_next_states are computed based
-        # on the "older" target_net; selecting their best reward with max(1)[0].
-        # This is merged based on the mask, such that we'll have either the expected
-        # state value or 0 in case the state was final.
-        next_state_values = torch.zeros(self.batch_size, device=self.device)
-        next_state_values[non_final_mask] = self.Q_target(non_final_next_states).max(1)[0].detach()
-        # Compute the expected Q values
-        expected_state_action_values = (next_state_values * self.alpha) + reward_batch
-
-        # Compute Huber loss
-        loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
-
-        # Optimize the model
-        self.optimizer.zero_grad()
-        loss.backward()
-        for param in self.Q_net.parameters():
-            param.grad.data.clamp_(-1, 1)
-        self.optimizer.step()
+        self.DeepQnetwork.train(terminal_state=True, batch_size=batch, DISCOUNT=self.alpha, EP_SYNC=self.sync_target_episode_count)
 
     def fn_turn(self):
         if self.gameboard.gameover:
@@ -422,10 +410,6 @@ class TDQNAgent:
             # TO BE COMPLETED BY STUDENT
             # Here you should write line(s) to copy the old state into the variable 'old_state' which is later stored in the ecperience replay buffer
             old_state = self.current_state
-            actions = np.zeros((len(self.actions, )))
-            actions[actions == 0] = -1
-            actions[self.current_action_idx] = 1
-            actions = torch.LongTensor(actions)
 
             # Drop the tile on the game board
             reward=self.gameboard.fn_drop()
@@ -439,13 +423,12 @@ class TDQNAgent:
 
             # TO BE COMPLETED BY STUDENT
             # Here you should write line(s) to store the state in the experience replay buffer
-            self.replay.push(old_state, actions, self.current_state, torch.tensor(reward))
+            self.DeepQnetwork.update_replay_memory((old_state, self.current_action_idx, reward, self.current_state))
 
-            if len(self.replay) >= self.replay_buffer_size:
+            if len(self.DeepQnetwork.replay_memory) >= self.replay_buffer_size:
                 # TO BE COMPLETED BY STUDENT
                 # Here you should write line(s) to create a variable 'batch' containing 'self.batch_size' quadruplets 
-                transitions = self.replay.sample(self.batch_size)
-                batch = Transition(*zip(*transitions))
+                batch = random.sample(self.replay)
 
                 self.fn_reinforce(batch)
 
