@@ -6,6 +6,11 @@ from sys import platform
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
 
+def smooth(y, box_pts):
+    box = np.ones(box_pts)/box_pts
+    y_smooth = np.convolve(y, box, mode='same')
+    return y_smooth
+
 def plot_task(TASK):
 
     if platform == "linux" or platform == "linux2":
@@ -18,11 +23,10 @@ def plot_task(TASK):
 
     plt.plot(episodes, rewards, label="Rewards")
 
+    """
     rewards = np.array(rewards).reshape((len(rewards)))
-
     episodes = episodes[:, np.newaxis]
     rewards = rewards[:, np.newaxis]
-
     poly_feat = PolynomialFeatures(degree=1)
     
     if TASK == "1a":
@@ -33,7 +37,7 @@ def plot_task(TASK):
         poly_feat = PolynomialFeatures(degree=3)
     if TASK == "2a":
         poly_feat = PolynomialFeatures(degree=3)
-    
+
     ep_poly = poly_feat.fit_transform(episodes)
 
     model = LinearRegression()
@@ -46,6 +50,19 @@ def plot_task(TASK):
     sorted_zip = sorted(zip(episodes,reward_poly_pred), key=sort_axis)
     episodes, reward_poly_pred = zip(*sorted_zip)
     plt.plot(episodes, reward_poly_pred, color='r', label="Fit")
+    """
+    box_pts = 1
+
+    if TASK == "1a":
+        box_pts = 25
+    if TASK == "1b":
+        box_pts = 50
+    if TASK == "1c":
+        box_pts = 100
+    if TASK == "2a":
+        box_pts = 50
+
+    plt.plot(episodes, smooth(rewards.flatten(), box_pts=box_pts), label="Average")
 
     plt.xlabel('E', size=24)
     plt.ylabel('R', size=24)
@@ -54,5 +71,4 @@ def plot_task(TASK):
 
 #plot_task("1a")
 #plot_task("1b")
-#plot_task("1c")
-plot_task("2a")
+plot_task("1a")

@@ -189,8 +189,8 @@ class DQN(nn.Module):
 
     # Called with either one element to determine next action, or a batch
     # during optimization. Returns tensor([[left0exp,right0exp]...]).
-    def forward(self, state):
-        x = F.relu(self.fc1(state))
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         actions = self.fc3(x)
         return actions
@@ -265,7 +265,7 @@ class TDQNAgent:
         self.Q_target.load_state_dict(self.Q_net.state_dict())
         self.Q_target.eval()
 
-        self.optimizer = optim.RMSprop(self.Q_net.parameters())
+        self.optimizer = optim.Adam(self.Q_net.parameters())
 
         self.replay             = ReplayMemory(capacity=self.replay_buffer_size)
 
@@ -335,6 +335,7 @@ class TDQNAgent:
                     self.current_action_idx = np.random.randint(0, len(self.actions))
                     move = self.gameboard.fn_move(self.actions[self.current_action_idx][0], self.actions[self.current_action_idx][1])
                     if move == 0:
+                        print("RANDOM")
                         done = True
         else:
             while(not done):
@@ -348,8 +349,10 @@ class TDQNAgent:
                             self.current_action_idx = np.random.randint(0, len(self.actions))
                             move = self.gameboard.fn_move(self.actions[self.current_action_idx][0], self.actions[self.current_action_idx][1])
                             if move == 0:
+                                print("RANDOM")
                                 done = True
                     else:
+                        print("TENSOR")
                         done = True
 
     def fn_reinforce(self,batch):
@@ -391,7 +394,7 @@ class TDQNAgent:
         expected_state_action_values = (next_state_values * self.alpha) + reward_batch
 
         # Compute Huber loss
-        loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
+        loss = F.mse_loss(state_action_values, expected_state_action_values.unsqueeze(1))
 
         # Optimize the model
         self.optimizer.zero_grad()
