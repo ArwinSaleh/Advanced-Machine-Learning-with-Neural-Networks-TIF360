@@ -384,7 +384,8 @@ class TDQNAgent:
             if self.episode>=self.episode_count:
                 raise SystemExit(0)
             else:
-                self.gameboard.fn_restart()
+                if (len(self.replay) >= self.replay_buffer_size) and ((self.episode % self.sync_target_episode_count)==0):
+                    self.gameboard.fn_restart()
         else:
             # Select and execute action (move the tile to the desired column and orientation)
             self.fn_select_action()
@@ -420,10 +421,7 @@ class TDQNAgent:
 
                 self.fn_reinforce(batch)
 
-                if self.episode_count % self.sync_target_episode_count == 0:
-                    # TO BE COMPLETED BY STUDENT
-                    # Here you should write line(s) to copy the current network to the target network
-                    self.Q_target.load_state_dict(self.Q_net.state_dict())
+                self.Q_target.load_state_dict(self.Q_net.state_dict())
 
 class THumanAgent:
     def fn_init(self,gameboard):
