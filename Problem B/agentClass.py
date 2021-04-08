@@ -3,6 +3,7 @@ import itertools
 from matplotlib import pyplot as plt
 from collections import namedtuple
 import random
+from numpy.testing._private.utils import print_assert_equal
 
 import torch
 import torch.nn as nn
@@ -256,8 +257,9 @@ class TDQNAgent:
         action_perm.append(range(0, N_ACTION_ORIENTATIONS))
         action_perm.append(range(0, N_ACTION_POSITIONS))
         for i in itertools.product(*action_perm):
-            self.actions.append(i)      # (action1, action2)
+            self.actions.append(i)      # (action1, action2)                
         self.actions = np.array(self.actions)
+
 
         self.Q_net              = DQN(rows=gameboard.N_row, cols=gameboard.N_col, tiles=gameboard.tiles, actions=self.actions)
         #self.Q_net = self.Q_net.float()
@@ -266,11 +268,13 @@ class TDQNAgent:
         self.Q_target.eval()
 
         #self.optimizer = optim.SGD(lr=0.01, params=self.Q_net.parameters())
-        self.optimizer = optim.SGD(lr=self.alpha, params=self.Q_net.parameters())
+        self.optimizer = optim.Adam(lr=self.alpha, params=self.Q_net.parameters())
 
         self.replay             = ReplayMemory(capacity=self.replay_buffer_size)
 
         self.reward_tots        = np.zeros((self.episode_count, ))
+
+        self.GAMMA = 1
 
     def fn_load_strategy(self,strategy_file):
         pass
@@ -321,22 +325,12 @@ class TDQNAgent:
                     done = True
 
     def fn_reinforce(self,batch):
-        # TO BE COMPLETED BY STUDENT
-        # This function should be written by you
-        # Instructions:
-        # Update the Q network using a batch of quadruplets (old state, last action, last reward, new state)
-        # Calculate the loss function by first, for each old state, use the Q-network to calculate the values Q(s_old,a), i.e. the estimate of the future reward for all actions a
-        # Then repeat for the target network to calculate the value \hat Q(s_new,a) of the new state (use \hat Q=0 if the new state is terminal)
-        # This function should not return a value, the Q table is stored as an attribute of self
 
-        # Useful variables: 
-        # The input argument 'batch' contains a sample of quadruplets used to update the Q-network
-
-        # Compute a mask of non-final states and concatenate the batch elements
-        # (a final state would've been the one after which simulation ended)
+        
 
         non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
                                             batch.next_state)), dtype=torch.bool)
+
         non_final_next_states = torch.cat([s for s in batch.next_state
                                                     if s is not None])
                                                     
@@ -344,22 +338,18 @@ class TDQNAgent:
         action_batch = torch.cat(batch.action)
         reward_batch = torch.cat(batch.reward)
 
-        # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
-        # columns of actions taken. These are the actions which would've been taken
-        # for each batch state according to policy_net
         state_action_values = self.Q_net(state_batch).gather(1, action_batch)
 
-        # Compute V(s_{t+1}) for all next states.
-        # Expected values of actions for non_final_next_states are computed based
-        # on the "older" target_net; selecting their best reward with max(1)[0].
-        # This is merged based on the mask, such that we'll have either the expected
-        # state value or 0 in case the state was final.
         next_state_values = torch.zeros(self.batch_size)
         next_state_values[non_final_mask] = self.Q_target(non_final_next_states).max(1)[0].detach()
-        # Compute the expected Q values
-        expected_state_action_values = (next_state_values * (1 - self.alpha)) + reward_batch
+        
+        if self.gameboard.gameover:
+            self.GAMMA = 0
+        else:
+            self.GAMMA = 1
+        
+        expected_state_action_values = reward_batch + next_state_values * self.GAMMA
 
-        # Compute Huber loss
         loss = F.mse_loss(state_action_values, expected_state_action_values.unsqueeze(1))
 
         # Optimize the model
@@ -377,16 +367,13 @@ class TDQNAgent:
             if self.episode%1000==0:
                 saveEpisodes=[1000,2000,5000,10000,20000,50000,100000,200000,500000,1000000];
                 if self.episode in saveEpisodes:
-                    pass
-                    # TO BE COMPLETED BY STUDENT
-                    # Here you can save the rewards and the Q-network to data files
                     np.savetxt("Rewards.csv", self.reward_tots)
             if self.episode>=self.episode_count:
                 raise SystemExit(0)
             else:
-                if (len(self.replay) >= self.replay_buffer_size) and ((self.episode % self.sync_target_episode_count)==0):
-                    self.gameboard.fn_restart()
+                self.gameboard.fn_restart()
         else:
+            self.GAMMA = 1
             # Select and execute action (move the tile to the desired column and orientation)
             self.fn_select_action()
             # TO BE COMPLETED BY STUDENT
@@ -421,7 +408,8 @@ class TDQNAgent:
 
                 self.fn_reinforce(batch)
 
-                self.Q_target.load_state_dict(self.Q_net.state_dict())
+                if len(self.replay) >= self.replay_buffer_size and self.episode % self.sync_target_episode_count==0:
+                    self.Q_target.load_state_dict(self.Q_net.state_dict())
 
 class THumanAgent:
     def fn_init(self,gameboard):

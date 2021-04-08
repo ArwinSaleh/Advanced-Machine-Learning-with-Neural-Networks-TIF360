@@ -22,35 +22,7 @@ def plot_task(TASK):
     episodes = np.linspace(0,n_episodes, n_episodes)
 
     plt.plot(episodes, rewards, label="Rewards")
-
-    """
-    rewards = np.array(rewards).reshape((len(rewards)))
-    episodes = episodes[:, np.newaxis]
-    rewards = rewards[:, np.newaxis]
-    poly_feat = PolynomialFeatures(degree=1)
     
-    if TASK == "1a":
-        poly_feat = PolynomialFeatures(degree=6)
-    if TASK == "1b":
-        poly_feat = PolynomialFeatures(degree=4)
-    if TASK == "1c":
-        poly_feat = PolynomialFeatures(degree=3)
-    if TASK == "2a":
-        poly_feat = PolynomialFeatures(degree=3)
-
-    ep_poly = poly_feat.fit_transform(episodes)
-
-    model = LinearRegression()
-    model.fit(ep_poly, rewards)
-
-    reward_poly_pred = model.predict(ep_poly)
-
-    # sort the values of x before line plot
-    sort_axis = operator.itemgetter(0)
-    sorted_zip = sorted(zip(episodes,reward_poly_pred), key=sort_axis)
-    episodes, reward_poly_pred = zip(*sorted_zip)
-    plt.plot(episodes, reward_poly_pred, color='r', label="Fit")
-    """
     box_pts = 1
 
     if TASK == "1a":
@@ -71,4 +43,4 @@ def plot_task(TASK):
 
 #plot_task("1a")
 #plot_task("1b")
-plot_task("1a")
+plot_task("2a")
