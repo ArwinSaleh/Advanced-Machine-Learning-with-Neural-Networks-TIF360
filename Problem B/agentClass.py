@@ -3,6 +3,7 @@ import itertools
 from matplotlib import pyplot as plt
 from collections import namedtuple
 import random
+from numpy.random import gamma
 from numpy.testing._private.utils import print_assert_equal
 
 import torch
@@ -152,34 +153,6 @@ class TQAgent:
             # Update the Q-table using the old state and the reward (the new state and the taken action should be stored as attributes in self)
             self.fn_reinforce(old_state,reward)
 
-"""
-class DeepQNet(nn.Module):
-            def __init__(self, learning_rate, input_dims, fc1_dims, fc2_dims, N_actions):
-                super(DeepQNet, self).__init__()
-                self.learning_rate = learning_rate
-                self.input_dims = input_dims
-                self.fc1_dims = fc1_dims
-                self.fc2_dims = fc2_dims
-                self.N_actions = N_actions
-
-                self.fc1 = nn.Linear(*self.input_dims, self.fc1_dims)
-                self.fc2 = nn.Linear(self.fc1_dims, self.fc2_dims)
-                self.fc3 = nn.Linear(self.fc2_dims, self.N_actions)
-
-                self.optimizer = optim.Adam(self.parameters(), lr=learning_rate)
-                self.loss = nn.MSELoss()
-
-                self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-            def forward(self, state):
-                x = F.relu(self.fc1(state))
-                x = F.relu(self.fc2(x))
-                actions = self.fc3(x)
-
-                return actions
-
-"""
-
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
 class ReplayMemory(object):
@@ -206,17 +179,30 @@ class DQN(nn.Module):
     def __init__(self, rows, cols, tiles, actions):
         super(DQN, self).__init__()
         self.fc1    = nn.Linear(rows * cols + len(tiles), 64)
+        self.relu1 = nn.ReLU(inplace=True)
         self.fc2    = nn.Linear(64, 64)
-        self.fc3    = nn.Linear(64, len(actions))
+        self.relu2 = nn.ReLU(inplace=True)
+        self.fc3    = nn.Linear(64, 64)
+        self.relu3 = nn.ReLU(inplace=True)
+        self.output = nn.Linear(64, len(actions))
 
-    # Called with either one element to determine next action, or a batch
-    # during optimization. Returns tensor([[left0exp,right0exp]...]).
-    def forward(self, x):
-        x = x.float()
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        actions = self.fc3(x)
-        return actions
+        nn.init.zeros_(self.fc1.bias)
+        nn.init.zeros_(self.fc2.bias)
+        nn.init.zeros_(self.fc3.bias)
+        nn.init.zeros_(self.output.bias)
+
+        #nn.init.uniform_(self.output.weight, a=-1e-6, b=1e-6)
+
+    def forward(self, data):
+        x = data.float()
+        x = self.fc1(x)
+        x = self.relu1(x)
+        x = self.fc2(x)
+        x = self.relu2(x)
+        x = self.fc3(x)
+        x = self.relu3(x)
+        x = self.output(x)
+        return x
 
 class TDQNAgent:
     # Agent for learning to play tetris using Q-learning
@@ -267,14 +253,11 @@ class TDQNAgent:
         self.Q_target.load_state_dict(self.Q_net.state_dict())
         self.Q_target.eval()
 
-        #self.optimizer = optim.SGD(lr=0.01, params=self.Q_net.parameters())
-        self.optimizer = optim.Adam(lr=self.alpha, params=self.Q_net.parameters())
+        self.optimizer = optim.Adam(self.Q_net.parameters(), self.alpha)
 
         self.replay             = ReplayMemory(capacity=self.replay_buffer_size)
 
         self.reward_tots        = np.zeros((self.episode_count, ))
-
-        self.GAMMA = 1
 
     def fn_load_strategy(self,strategy_file):
         pass
@@ -315,7 +298,6 @@ class TDQNAgent:
                 move = self.gameboard.fn_move(self.actions[self.current_action_idx][0], self.actions[self.current_action_idx][1])
 
                 if move == 1:
-                    #self.Q_net[tensor_max] = torch.tensor(- 999)
                     while(not done):
                         self.current_action_idx = np.random.randint(0, len(self.actions))
                         move = self.gameboard.fn_move(self.actions[self.current_action_idx][0], self.actions[self.current_action_idx][1])
@@ -343,15 +325,15 @@ class TDQNAgent:
         next_state_values = torch.zeros(self.batch_size)
         next_state_values[non_final_mask] = self.Q_target(non_final_next_states).max(1)[0].detach()
         
-        if self.gameboard.gameover:
-            self.GAMMA = 0
+        if self.gameboard.gameover == 1:
+            GAMMA = 0
         else:
-            self.GAMMA = 1
-        
-        expected_state_action_values = reward_batch + next_state_values * self.GAMMA
+            GAMMA = 1
+
+        expected_state_action_values = reward_batch + next_state_values * GAMMA
 
         loss = F.mse_loss(state_action_values, expected_state_action_values.unsqueeze(1))
-
+        
         # Optimize the model
         self.optimizer.zero_grad()
         loss.backward()
@@ -370,10 +352,12 @@ class TDQNAgent:
                     np.savetxt("Rewards.csv", self.reward_tots)
             if self.episode>=self.episode_count:
                 raise SystemExit(0)
+
+            if len(self.replay) >= self.replay_buffer_size and self.episode % self.sync_target_episode_count==0:
+                    self.Q_target.load_state_dict(self.Q_net.state_dict())
             else:
                 self.gameboard.fn_restart()
         else:
-            self.GAMMA = 1
             # Select and execute action (move the tile to the desired column and orientation)
             self.fn_select_action()
             # TO BE COMPLETED BY STUDENT
@@ -408,8 +392,6 @@ class TDQNAgent:
 
                 self.fn_reinforce(batch)
 
-                if len(self.replay) >= self.replay_buffer_size and self.episode % self.sync_target_episode_count==0:
-                    self.Q_target.load_state_dict(self.Q_net.state_dict())
 
 class THumanAgent:
     def fn_init(self,gameboard):
