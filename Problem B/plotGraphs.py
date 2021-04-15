@@ -41,6 +41,4 @@ def plot_task(TASK):
     plt.legend()
     plt.show()
 
-#plot_task("1a")
-#plot_task("1b")
 plot_task("2a")
