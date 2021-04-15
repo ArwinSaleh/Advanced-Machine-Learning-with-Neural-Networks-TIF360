@@ -5,6 +5,7 @@ from collections import namedtuple
 import random
 from numpy.random import gamma
 from numpy.testing._private.utils import print_assert_equal
+import copy
 
 import torch
 import torch.nn as nn
@@ -154,7 +155,7 @@ class TQAgent:
             self.fn_reinforce(old_state,reward)
 
 Transition = namedtuple('Transition',
-                        ('state', 'action', 'next_state', 'reward'))
+                        ('state', 'action', 'next_state', 'reward', 'term'))
 class ReplayMemory(object):
 
     def __init__(self, capacity):
@@ -178,30 +179,15 @@ class DQN(nn.Module):
 
     def __init__(self, rows, cols, tiles, actions):
         super(DQN, self).__init__()
-        self.fc1    = nn.Linear(rows * cols + len(tiles), 64)
-        self.relu1 = nn.ReLU(inplace=True)
+        self.fc1    = nn.Linear(rows * cols + len(tiles) + 1, 64)
         self.fc2    = nn.Linear(64, 64)
-        self.relu2 = nn.ReLU(inplace=True)
-        self.fc3    = nn.Linear(64, 64)
-        self.relu3 = nn.ReLU(inplace=True)
-        self.output = nn.Linear(64, len(actions))
-
-        nn.init.zeros_(self.fc1.bias)
-        nn.init.zeros_(self.fc2.bias)
-        nn.init.zeros_(self.fc3.bias)
-        nn.init.zeros_(self.output.bias)
-
-        #nn.init.uniform_(self.output.weight, a=-1e-6, b=1e-6)
+        self.fc3    = nn.Linear(64, len(actions))
 
     def forward(self, data):
         x = data.float()
-        x = self.fc1(x)
-        x = self.relu1(x)
-        x = self.fc2(x)
-        x = self.relu2(x)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
         x = self.fc3(x)
-        x = self.relu3(x)
-        x = self.output(x)
         return x
 
 class TDQNAgent:
@@ -259,6 +245,8 @@ class TDQNAgent:
 
         self.reward_tots        = np.zeros((self.episode_count, ))
 
+        self.sync_count         = 0
+
     def fn_load_strategy(self,strategy_file):
         pass
         # TO BE COMPLETED BY STUDENT
@@ -273,8 +261,11 @@ class TDQNAgent:
         tiles[tiles == 0] = -1
         tiles[self.gameboard.cur_tile_type] = 1
 
+        current_board = np.concatenate((current_board, [self.gameboard.gameover]), axis=None)
+
         self.current_state_np = np.concatenate((current_board, tiles), axis=None)
-        self.current_state = torch.tensor([self.current_state_np])
+
+        self.current_state = copy.deepcopy(torch.tensor([self.current_state_np]))
 
     def fn_select_action(self):
 
@@ -282,29 +273,15 @@ class TDQNAgent:
 
         r = np.random.uniform(0, 1)
 
-        done = False
         
         epsilon_E = max(self.epsilon, 1 - self.episode / self.epsilon_scale)
 
         if r < epsilon_E:
-            while(not done):
-                self.current_action_idx = np.random.randint(0, len(self.actions))
-                move = self.gameboard.fn_move(self.actions[self.current_action_idx][0], self.actions[self.current_action_idx][1])
-                if move == 0:
-                    done = True
+            self.current_action_idx = np.random.randint(0, len(self.actions))
+            self.gameboard.fn_move(self.actions[self.current_action_idx][0], self.actions[self.current_action_idx][1])
         else:
-            while(not done):
-                self.current_action_idx = self.Q_net(self.current_state).argmax().item()
-                move = self.gameboard.fn_move(self.actions[self.current_action_idx][0], self.actions[self.current_action_idx][1])
-
-                if move == 1:
-                    while(not done):
-                        self.current_action_idx = np.random.randint(0, len(self.actions))
-                        move = self.gameboard.fn_move(self.actions[self.current_action_idx][0], self.actions[self.current_action_idx][1])
-                        if move == 0:
-                            done = True
-                else:
-                    done = True
+            self.current_action_idx = self.Q_target(self.current_state).argmax().item()
+            self.gameboard.fn_move(self.actions[self.current_action_idx][0], self.actions[self.current_action_idx][1])
 
     def fn_reinforce(self,batch):
 
@@ -319,26 +296,23 @@ class TDQNAgent:
         state_batch = torch.cat(batch.state)
         action_batch = torch.cat(batch.action)
         reward_batch = torch.cat(batch.reward)
+        term_batch = torch.cat(batch.term)
 
         state_action_values = self.Q_net(state_batch).gather(1, action_batch)
 
         next_state_values = torch.zeros(self.batch_size)
         next_state_values[non_final_mask] = self.Q_target(non_final_next_states).max(1)[0].detach()
-        
-        if self.gameboard.gameover == 1:
-            GAMMA = 0
-        else:
-            GAMMA = 1
 
-        expected_state_action_values = reward_batch + next_state_values * GAMMA
+
+        GAMMA = 0.99
+        
+        expected_state_action_values = reward_batch + next_state_values * GAMMA * term_batch
 
         loss = F.mse_loss(state_action_values, expected_state_action_values.unsqueeze(1))
         
         # Optimize the model
         self.optimizer.zero_grad()
         loss.backward()
-        for param in self.Q_net.parameters():
-            param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
 
     def fn_turn(self):
@@ -352,9 +326,7 @@ class TDQNAgent:
                     np.savetxt("Rewards.csv", self.reward_tots)
             if self.episode>=self.episode_count:
                 raise SystemExit(0)
-
-            if len(self.replay) >= self.replay_buffer_size and self.episode % self.sync_target_episode_count==0:
-                    self.Q_target.load_state_dict(self.Q_net.state_dict())
+                    
             else:
                 self.gameboard.fn_restart()
         else:
@@ -362,16 +334,17 @@ class TDQNAgent:
             self.fn_select_action()
             # TO BE COMPLETED BY STUDENT
             # Here you should write line(s) to copy the old state into the variable 'old_state' which is later stored in the ecperience replay buffer
-            old_state = np.copy(self.current_state_np)
+            old_state = copy.deepcopy(self.current_state_np)
+            
             old_state = torch.tensor([old_state])
             
             #actions = np.zeros((len(self.actions, )))
             #actions[actions == 0] = -1
             #actions[self.current_action_idx] = 1
-            action = torch.tensor([[self.current_action_idx]])
+            action = copy.deepcopy(torch.tensor([[self.current_action_idx]], dtype=torch.long))
 
             # Drop the tile on the game board
-            reward=self.gameboard.fn_drop()
+            reward=copy.deepcopy(self.gameboard.fn_drop())
 
             # TO BE COMPLETED BY STUDENT
             # Here you should write line(s) to add the current reward to the total reward for the current episode, so you can save it to disk later
@@ -380,9 +353,12 @@ class TDQNAgent:
             # Read the new state
             self.fn_read_state()
 
-            # TO BE COMPLETED BY STUDENT
-            # Here you should write line(s) to store the state in the experience replay buffer
-            self.replay.push(old_state, action, self.current_state, torch.tensor([reward]))
+            if self.gameboard.gameover:
+                term = torch.tensor([0])
+            else:
+                term = torch.tensor([1])
+
+            self.replay.push(old_state, action, self.current_state, torch.tensor([reward]), term)
 
             if len(self.replay) >= self.replay_buffer_size:
                 # TO BE COMPLETED BY STUDENT
@@ -392,6 +368,10 @@ class TDQNAgent:
 
                 self.fn_reinforce(batch)
 
+                if self.sync_count % self.sync_target_episode_count==0:
+                    self.Q_target.load_state_dict(self.Q_net.state_dict())
+                
+                self.sync_count += 1
 
 class THumanAgent:
     def fn_init(self,gameboard):
